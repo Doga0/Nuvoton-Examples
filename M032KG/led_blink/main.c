@@ -1,0 +1,62 @@
+#include <stdio.h>
+#include "NuMicro.h"
+
+void SYS_Init(void)
+{
+    SYS_UnlockReg();
+
+    CLK_EnableXtalRC(CLK_PWRCTL_LIRCEN_Msk|CLK_PWRCTL_HIRCEN_Msk|CLK_PWRCTL_LXTEN_Msk|CLK_PWRCTL_HXTEN_Msk);
+
+    CLK_WaitClockReady(CLK_STATUS_LIRCSTB_Msk|CLK_STATUS_HIRCSTB_Msk|CLK_STATUS_LXTSTB_Msk|CLK_STATUS_HXTSTB_Msk);
+
+    CLK_DisablePLL();
+
+    CLK->PLLCTL = (CLK->PLLCTL & ~(0x000FFFFFUL)) | 0x0008C03EUL;
+
+    CLK_WaitClockReady(CLK_STATUS_PLLSTB_Msk);
+
+    CLK_SetHCLK(CLK_CLKSEL0_HCLKSEL_HIRC, CLK_CLKDIV0_HCLK(1));
+
+    CLK->PCLKDIV = (CLK_PCLKDIV_APB0DIV_DIV1 | CLK_PCLKDIV_APB1DIV_DIV1);
+
+    CLK_EnableModuleClock(ISP_MODULE);
+    CLK_EnableModuleClock(PWM1_MODULE);
+    CLK_EnableModuleClock(UART0_MODULE);
+    CLK_EnableModuleClock(WDT_MODULE);
+    CLK_EnableModuleClock(WWDT_MODULE);
+
+    CLK_SetModuleClock(PWM1_MODULE, CLK_CLKSEL2_PWM1SEL_PCLK1, MODULE_NoMsk);
+    CLK_SetModuleClock(UART0_MODULE, CLK_CLKSEL1_UART0SEL_PCLK0, CLK_CLKDIV0_UART0(1));
+    CLK_SetModuleClock(WDT_MODULE, CLK_CLKSEL1_WDTSEL_LIRC, MODULE_NoMsk);
+    CLK_SetModuleClock(WWDT_MODULE, CLK_CLKSEL1_WWDTSEL_HCLK_DIV2048, MODULE_NoMsk);
+
+    SystemCoreClockUpdate();
+		
+    SYS->GPB_MFPH = SYS_GPB_MFPH_PB14MFP_GPIO | SYS_GPB_MFPH_PB13MFP_UART0_TXD | SYS_GPB_MFPH_PB12MFP_UART0_RXD;
+    SYS->GPF_MFPL = SYS_GPF_MFPL_PF1MFP_ICE_CLK | SYS_GPF_MFPL_PF0MFP_ICE_DAT;
+		
+    SYS_LockReg();
+}
+
+void UART0_Init(){
+		SYS_ResetModule(UART0_RST);
+		UART_Open(UART0, 115200);
+}
+
+int main()
+{
+	SYS_Init();
+	UART0_Init();
+
+	GPIO_SetMode(PB, BIT14, GPIO_MODE_OUTPUT);
+	
+	while(1){
+		PB14 = 0;
+		
+		CLK_SysTickDelay(300000);
+	
+		PB14 = 1;
+	
+		CLK_SysTickDelay(300000);
+	}
+}
